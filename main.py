@@ -14,30 +14,55 @@ config = {
     }
 }
 
-startworking = False
+# Prevent multiple scheduler threads/jobs
+started = False
+lock = threading.Lock()
 
 
 @app.route("/")
-def Home():
-    global startworking
+def home():
+    global started
 
-    startworking = True
+    # First home visit only
+    with lock:
+        if not started:
+            started = True
 
-    return "Server running successfully. Automatic job started."
+            print(
+                "🌐 First home visit detected:",
+                datetime.now(),
+                flush=True
+            )
+
+            # Run first agent call immediately
+            threading.Thread(
+                target=job,
+                daemon=True
+            ).start()
+
+            # Start hourly scheduler
+            threading.Thread(
+                target=scheduler,
+                daemon=True
+            ).start()
+
+            return "Server running. Agent started."
+
+    # All later Updown calls
+    return "Server running successfully."
 
 
 def job():
 
-    global startworking
-
-    if not startworking:
-        return
+    print("\n==============================", flush=True)
+    print(
+        "🤖 Agent job started:",
+        datetime.now(),
+        flush=True
+    )
+    print("==============================", flush=True)
 
     try:
-
-        print("\n==============================")
-        print("Job running:", datetime.now())
-        print("==============================")
 
         ans = graph.invoke(
             {
@@ -46,36 +71,62 @@ def job():
             config=config
         )
 
-        print(ans["messages"][-1].content)
+        print(
+            "✅ Agent completed:",
+            datetime.now(),
+            flush=True
+        )
+
+        if ans and "messages" in ans:
+
+            print(
+                "Agent response:",
+                ans["messages"][-1].content,
+                flush=True
+            )
 
     except Exception as e:
 
-        print("Job error:", e)
+        print(
+            "❌ Agent job error:",
+            repr(e),
+            flush=True
+        )
 
 
 def scheduler():
 
+    print(
+        "⏰ Hourly scheduler started",
+        flush=True
+    )
+
+    # Wait exactly 1 hour after the FIRST job was started
+    time.sleep(60 * 60)
+
     while True:
 
-        if startworking:
-            job()
+        print(
+            "\n⏰ One hour passed. Starting agent:",
+            datetime.now(),
+            flush=True
+        )
 
-        print("Waiting 1 minute...\n")
+        job()
+
+        print(
+            "💤 Waiting 1 hour...",
+            flush=True
+        )
+
         time.sleep(60 * 60)
 
 
 if __name__ == "__main__":
 
-    # Start scheduler in background
-    thread = threading.Thread(
-        target=scheduler,
-        daemon=True
-    )
-
-    thread.start()
-
-    # Start Flask
     app.run(
-        debug=True,
+        host="0.0.0.0",
+        port=10000,
+        debug=False,
         use_reloader=False
     )
