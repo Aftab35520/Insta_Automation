@@ -66,7 +66,7 @@ def job():
 
         ans = graph.invoke(
             {
-                "messages": "generate and upload with proper captain"
+                "messages": "generate and upload with proper captains"
             },
             config=config
         )
@@ -102,7 +102,7 @@ def scheduler():
     )
 
     # Wait exactly 1 hour after the FIRST job was started
-    time.sleep(60 * 60)
+    time.sleep(60 * 30)
 
     while True:
 
@@ -119,7 +119,7 @@ def scheduler():
             flush=True
         )
 
-        time.sleep(60 * 60)
+        time.sleep(60 * 30)
 
 
 if __name__ == "__main__":
