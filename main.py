@@ -66,7 +66,7 @@ def job():
 
         ans = graph.invoke(
             {
-                "messages": "generate and upload"
+                "messages": "generate and upload with proper captain"
             },
             config=config
         )
