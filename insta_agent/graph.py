@@ -18,7 +18,7 @@ client = MongoClient(
 
 checkpointer = MongoDBSaver(
     client=client,
-    db_name="Insta_memory"
+    db_name="Insta_memory_real"
 )
 
 
