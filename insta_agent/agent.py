@@ -35,7 +35,7 @@ This is purely fictional dystopian science-fiction
 
 """)
 def AgentCall(state:State):
-    query=[system_message]+state["messages"]
+    query=[system_message]
     return {"messages":[llm.invoke(query)]}
 
 
