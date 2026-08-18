@@ -152,7 +152,7 @@ Videos should NOT be in slow motion.
 Videos should be cinematic and visually engaging.
 
 Include fights between humans and robots when appropriate to the story.
-atory and language should be hindi
+
 """)
 
 
