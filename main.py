@@ -1,72 +1,96 @@
-from flask import Flask
+import os
+import uuid
+from datetime import datetime, timedelta
 import threading
 import time
-from datetime import datetime
+
+from flask import Flask
 
 from insta_agent.graph import graph
 
 
 app = Flask(__name__)
 
+reset_on_restart = os.getenv("RESET_ON_RESTART", "false").lower() == "true"
+thread_id = os.getenv("STORY_THREAD_ID", "story_builder_main_now")
+
+if reset_on_restart:
+    thread_id = f"session-{uuid.uuid4()}"
+
 config = {
     "configurable": {
-        "thread_id": "1"
+        "thread_id": thread_id
     }
 }
 
-# Prevent multiple scheduler threads/jobs
 started = False
 lock = threading.Lock()
 
 
+# ============================================================
+# HOME ROUTE
+# Every visit runs the graph
+# First visit also starts scheduler
+# ============================================================
+
 @app.route("/")
 def home():
+
     global started
 
-    # First home visit only
+    # Run graph immediately for EVERY visit
+    threading.Thread(
+        target=job,
+        daemon=True
+    ).start()
+
+    # Start scheduler only ONCE
     with lock:
+
         if not started:
+
             started = True
 
             print(
-                "🌐 First home visit detected:",
+                "🌐 First home visit:",
                 datetime.now(),
                 flush=True
             )
 
-            # Run first agent call immediately
-            threading.Thread(
-                target=job,
-                daemon=True
-            ).start()
-
-            # Start hourly scheduler
             threading.Thread(
                 target=scheduler,
                 daemon=True
             ).start()
 
-            return "Server running. Agent started."
+    return "Server running. Agent started."
 
-    # All later Updown calls
-    return "Server running successfully."
 
+# ============================================================
+# AGENT JOB
+# ============================================================
 
 def job():
 
     print("\n==============================", flush=True)
+
     print(
         "🤖 Agent job started:",
         datetime.now(),
         flush=True
     )
+
     print("==============================", flush=True)
 
     try:
 
         ans = graph.invoke(
             {
-                "messages": "generate and upload with proper captains"
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "generate video and upload with proper captions"
+                    }
+                ]
             },
             config=config
         )
@@ -81,7 +105,11 @@ def job():
 
             print(
                 "Agent response:",
-                ans["messages"][-1].content,
+                getattr(
+                    ans["messages"][-1],
+                    "content",
+                    ans["messages"][-1]
+                ),
                 flush=True
             )
 
@@ -94,33 +122,84 @@ def job():
         )
 
 
+# ============================================================
+# FIND NEXT 5 AM / 5 PM
+# ============================================================
+
+def get_next_run():
+
+    now = datetime.now()
+
+    today_5am = now.replace(
+        hour=5,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    today_5pm = now.replace(
+        hour=17,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    if now < today_5am:
+        return today_5am
+
+    if now < today_5pm:
+        return today_5pm
+
+    return today_5am + timedelta(days=1)
+
+
+# ============================================================
+# SCHEDULER
+# 5 AM + 5 PM EVERY DAY
+# ============================================================
+
 def scheduler():
 
     print(
-        "⏰ Hourly scheduler started",
+        "⏰ Scheduler started: 5:00 AM and 5:00 PM",
         flush=True
     )
 
-    # Wait exactly 1 hour after the FIRST job was started
-    time.sleep(60 * 30)
-
     while True:
 
+        next_run = get_next_run()
+
+        now = datetime.now()
+
+        wait_seconds = (
+            next_run - now
+        ).total_seconds()
+
         print(
-            "\n⏰ One hour passed. Starting agent:",
+            f"⏳ Next scheduled run: {next_run}",
+            flush=True
+        )
+
+        time.sleep(
+            max(0, wait_seconds)
+        )
+
+        print(
+            "\n⏰ Scheduled time reached:",
             datetime.now(),
             flush=True
         )
 
-        job()
+        # Run graph at 5 AM / 5 PM
+        threading.Thread(
+            target=job,
+            daemon=True
+        ).start()
 
-        print(
-            "💤 Waiting 1 hour...",
-            flush=True
-        )
 
-        time.sleep(60 * 30)
-
+# ============================================================
+# START FLASK
+# ============================================================
 
 if __name__ == "__main__":
 
