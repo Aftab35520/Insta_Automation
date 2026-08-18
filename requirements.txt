@@ -1,9 +1,0 @@
-langchain
-langgraph
-langchain-community
-dotenv
-langchain_openai
-pillow
-flask
-pymongo
-langgraph-checkpoint-mongodb
